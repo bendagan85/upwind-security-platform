@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/bendagan85/upwind-security-platform.git'
+    targetRevision: main
+    path: k8s/monitoring  # <--- מסתכל רק על תיקיית הניטור
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: monitoring # <--- מתקין לתוך ה-Namespace הנכון
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
