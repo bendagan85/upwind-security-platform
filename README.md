@@ -150,9 +150,9 @@ The CI pipeline runs on every push to main:
 
 ArgoCD then detects the change in Git and automatically syncs the new deployment to the EKS cluster.
 
-![CI Pipeline](docs/screenshots/pipelinesteps.png)
+![CI Pipeline](picsforupwindproject/pipelinesteps.png)
 
-![Pipeline History](docs/screenshots/piplineprocces.png)
+![Pipeline History](picsforupwindproject/piplineprocces.png)
 
 ## GitOps with ArgoCD
 
@@ -163,9 +163,9 @@ ArgoCD continuously monitors the Git repository and ensures the cluster state ma
 - **Drift detection** — Alerts on configuration drift
 - **Pull-based** — More secure than push-based CI/CD
 
-![ArgoCD Dashboard](docs/screenshots/argocdisup.png)
+![ArgoCD Dashboard](picsforupwindproject/argocdisup.png)
 
-![ArgoCD Application Tree](docs/screenshots/argocdafterstresstest.png)
+![ArgoCD Application Tree](picsforupwindproject/argocdafterstresstest.png)
 
 ## Monitoring & Alerting
 
@@ -174,16 +174,16 @@ Monitoring based on the 4 Golden Signals: Latency, Traffic, Errors, Saturation.
 
 **Before stress test:**
 
-![Grafana Before](docs/screenshots/gtafanabeforesresstest.png)
+![Grafana Before](picsforupwindproject/gtafanabeforesresstest.png)
 
 **During stress test:**
 
-![Grafana After](docs/screenshots/grafanadashboardafterstresstest.png)
+![Grafana After](picsforupwindproject/grafanadashboardafterstresstest.png)
 
 ### Discord Alerts
 Grafana sends real-time alerts to Discord when thresholds are exceeded.
 
-![Discord Alert](docs/screenshots/discordalertfromgrafana.png)
+![Discord Alert](picsforupwindproject/discordalertfromgrafana.png)
 
 ## Auto-Scaling (HPA)
 
@@ -195,9 +195,9 @@ Horizontal Pod Autoscaler automatically scales pods based on CPU utilization:
 
 During a stress test, the HPA scaled from 2 pods to 10 pods:
 
-![Stress Test](docs/screenshots/stresstest.png)
+![Stress Test](picsforupwindproject/stresstest.png)
 
-![HPA Scaling](docs/screenshots/podsafterstresstest.png)
+![HPA Scaling](picsforupwindproject/podsafterstresstest.png)
 
 ## Ingress
 
@@ -210,26 +210,26 @@ Single NGINX Ingress Controller routing to all services through one NLB:
 | grafana.upwind.local | Grafana |
 | prometheus.upwind.local | Prometheus |
 
-![Ingress Configuration](docs/screenshots/ingresses.png)
+![Ingress Configuration](picsforupwindproject/ingresses.png)
 
-![Application UI](docs/screenshots/appui.png)
+![Application UI](picsforupwindproject/appui.png)
 
 ## Infrastructure
 
 ### EKS Cluster
 3 nodes running Kubernetes 1.29 on private subnets:
 
-![Nodes](docs/screenshots/nodesareup.png)
+![Nodes](picsforupwindproject/nodesareup.png)
 
 ### ECR Repository
 Container images with scan-on-push:
 
-![ECR](docs/screenshots/ecrgetstheimages.png)
+![ECR](picsforupwindproject/ecrgetstheimages.png)
 
 ### Terraform State
 Remote state stored in S3 with DynamoDB locking:
 
-![S3 State](docs/screenshots/stateins3.png)
+![S3 State](picsforupwindproject/stateins3.png)
 
 ## Getting Started
 
@@ -256,10 +256,10 @@ aws eks update-kubeconfig --region us-east-1 --name upwind-cluster
 
 # 4. Build and push application image
 cd ../app
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 002757291574.dkr.ecr.us-east-1.amazonaws.com
 docker build -t upwind-app .
-docker tag upwind-app:latest <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/upwind-app:latest
-docker push <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/upwind-app:latest
+docker tag upwind-app:latest 002757291574.dkr.ecr.us-east-1.amazonaws.com/upwind-app:latest
+docker push 002757291574.dkr.ecr.us-east-1.amazonaws.com/upwind-app:latest
 
 # 5. Deploy Kubernetes resources
 kubectl apply -f k8s/app/
