@@ -1,4 +1,4 @@
-name: CI - Build, Scan, Push
+name: CI - Build, Test (Kind), Scan, Push
 
 on:
   push:
@@ -9,10 +9,11 @@ on:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: upwind-app
+  KIND_CLUSTER_NAME: chart-testing
 
 jobs:
-  build-scan-push:
-    name: Build, Security Scan, and Push
+  build-test-scan-push:
+    name: Build, Test in Kind, Security Scan, and Push
     runs-on: ubuntu-latest
 
     permissions:
@@ -27,15 +28,41 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # 1. בניית האימג' ושמירה לוקאלית (load: true)
       - name: Build Docker image
         uses: docker/build-push-action@v5
         with:
           context: ./app
           file: ./app/Dockerfile
           push: false
-          load: true
+          load: true # קריטי! שומר את האימג' ב-Docker של ה-Runner
           tags: ${{ env.ECR_REPOSITORY }}:${{ github.sha }}
 
+      # 2. הקמת קלאסטר Kind
+      - name: Create k8s Kind Cluster
+        uses: helm/kind-action@v1.9.0
+        with:
+          cluster_name: ${{ env.KIND_CLUSTER_NAME }}
+
+      # 3. טעינת האימג' לתוך הקלאסטר (אחרת Kind לא יכיר אותו)
+      - name: Load Docker image into Kind
+        run: |
+          kind load docker-image ${{ env.ECR_REPOSITORY }}:${{ github.sha }} --name ${{ env.KIND_CLUSTER_NAME }}
+
+      # 4. בדיקת Smoke Test - האם הפוד עולה?
+      - name: Test App on Kind
+        run: |
+          echo "Deploying pod to Kind..."
+          # image-pull-policy=Never מבטיח שימוש באימג' המקומי שטענו
+          kubectl run test-app --image=${{ env.ECR_REPOSITORY }}:${{ github.sha }} --restart=Never --image-pull-policy=Never
+          
+          echo "Waiting for pod to be ready..."
+          kubectl wait --for=condition=Ready pod/test-app --timeout=60s
+          
+          echo "Test Passed! Pod is running. Cleaning up..."
+          kubectl delete pod test-app
+
+      # 5. סריקות אבטחה (רצות רק אם הבדיקה עברה)
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
         with:
@@ -50,6 +77,7 @@ jobs:
           dockerfile: ./app/Dockerfile
           failure-threshold: warning
 
+      # 6. התחברות ודחיפה (רק אם זה Main)
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
