@@ -102,24 +102,28 @@ This project demonstrates the same security-first mindset that Upwind promotes: 
 upwind-security-platform/
 ├── .github/
 │   └── workflows/
-│       └── ci.yml                # CI pipeline (build, test, scan, push)
+│       └── ci.yml                    # CI: build, test (Kind), scan (Trivy), push (ECR)
 ├── app/
-│   ├── app.py                    # Flask application
-│   ├── Dockerfile                # Multi-stage, hardened
+│   ├── app.py                        # Flask application
+│   ├── Dockerfile                    # Multi-stage, security hardened
 │   └── requirements.txt
 ├── k8s/
-│   ├── app/                      # Application manifests
+│   ├── app/                          # Application manifests
 │   │   ├── namespace.yaml
 │   │   ├── deployment.yaml
 │   │   ├── service.yaml
 │   │   ├── hpa.yaml
+│   │   ├── ingress.yaml
 │   │   ├── rbac.yaml
-│   │   ├── networkpolicy.yaml
-│   │   └── ingress.yaml
-│   ├── argocd/                   # ArgoCD configuration
-│   └── monitoring/               # Monitoring manifests
+│   │   └── networkpolicy.yaml
+│   ├── argocd/                       # ArgoCD configuration
+│   │   ├── application.yaml
+│   │   ├── ingress-argocd.yaml
+│   │   └── monitoring-app.yaml
+│   └── monitoring/                   # Monitoring manifests
+│       └── ingress-monitoring.yaml
 ├── terraform/
-│   ├── boot/                     # State infrastructure (S3 + DynamoDB)
+│   ├── boot/                         # State infrastructure (S3 + DynamoDB)
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
@@ -132,8 +136,7 @@ upwind-security-platform/
 │   ├── iam-github.tf
 │   ├── variables.tf
 │   └── outputs.tf
-├── docs/
-│   └── screenshots/
+├── picsforupwindproject/             # Screenshots for documentation
 └── README.md
 ```
 
