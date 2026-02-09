@@ -18,6 +18,7 @@ resource "aws_kms_alias" "ecr" {
 resource "aws_ecr_repository" "app" {
   name                 = "upwind-app"
   image_tag_mutability = "MUTABLE"
+  force_delete = true
 
   # Security: Image scanning
   image_scanning_configuration {
