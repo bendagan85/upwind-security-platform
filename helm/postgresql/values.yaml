@@ -1,0 +1,21 @@
+image:
+  repository: postgres
+  tag: "16-alpine"
+
+service:
+  port: 5432
+
+storage:
+  size: 5Gi
+
+env:
+  POSTGRES_DB: upwind
+  POSTGRES_USER: upwind
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi

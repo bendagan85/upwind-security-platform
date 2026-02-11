@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upwind Security Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0f172a; color: #e2e8f0; min-height: 100vh; }
+        .header { background: #1e293b; padding: 20px 40px; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 24px; color: #38bdf8; }
+        .header .status { color: #4ade80; font-size: 14px; }
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+        .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 30px; }
+        .stat-card { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; }
+        .stat-card h3 { font-size: 14px; color: #94a3b8; margin-bottom: 8px; }
+        .stat-card .value { font-size: 32px; font-weight: bold; }
+        .stat-card .value.healthy { color: #4ade80; }
+        .stat-card .value.unhealthy { color: #f87171; }
+        .stat-card .value.total { color: #38bdf8; }
+        .add-form { background: #1e293b; border-radius: 12px; padding: 20px; border: 1px solid #334155; margin-bottom: 30px; display: flex; gap: 12px; align-items: end; }
+        .add-form .field { flex: 1; }
+        .add-form label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 4px; }
+        .add-form input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: #e2e8f0; font-size: 14px; }
+        .add-form button { padding: 10px 24px; border-radius: 8px; border: none; background: #38bdf8; color: #0f172a; font-weight: bold; cursor: pointer; white-space: nowrap; }
+        .add-form button:hover { background: #7dd3fc; }
+        table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 12px; overflow: hidden; border: 1px solid #334155; }
+        th { text-align: left; padding: 14px 20px; background: #334155; font-size: 12px; color: #94a3b8; text-transform: uppercase; }
+        td { padding: 14px 20px; border-top: 1px solid #334155; }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .badge.healthy { background: #065f46; color: #4ade80; }
+        .badge.unhealthy { background: #7f1d1d; color: #f87171; }
+        .badge.warning { background: #78350f; color: #fbbf24; }
+        .actions button { padding: 6px 12px; border-radius: 6px; border: 1px solid #334155; background: transparent; color: #94a3b8; cursor: pointer; margin-right: 4px; font-size: 12px; }
+        .actions button:hover { background: #334155; }
+        .actions button.delete:hover { background: #7f1d1d; color: #f87171; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Upwind Security Dashboard</h1>
+        <div class="status">● System Operational</div>
+    </div>
+    <div class="container">
+        <div class="stats">
+            <div class="stat-card"><h3>Total Servers</h3><div class="value total" id="total">0</div></div>
+            <div class="stat-card"><h3>Healthy</h3><div class="value healthy" id="healthy">0</div></div>
+            <div class="stat-card"><h3>Unhealthy</h3><div class="value unhealthy" id="unhealthy">0</div></div>
+        </div>
+        <div class="add-form">
+            <div class="field"><label>Server Name</label><input type="text" id="name" placeholder="web-server-01"></div>
+            <div class="field"><label>IP Address</label><input type="text" id="ip" placeholder="10.0.1.50"></div>
+            <button onclick="addServer()">+ Add Server</button>
+        </div>
+        <table>
+            <thead><tr><th>Name</th><th>IP Address</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody id="servers"></tbody>
+        </table>
+    </div>
+    <script>
+        const API = window.location.protocol + '//' + window.location.hostname + '/api';
+
+        async function loadServers() {
+            try {
+                const res = await fetch(API + '/servers');
+                const servers = await res.json();
+                document.getElementById('total').textContent = servers.length;
+                document.getElementById('healthy').textContent = servers.filter(s => s.status === 'healthy').length;
+                document.getElementById('unhealthy').textContent = servers.filter(s => s.status === 'unhealthy').length;
+                document.getElementById('servers').innerHTML = servers.map(s => `
+                    <tr>
+                        <td>${s.name}</td>
+                        <td>${s.ip}</td>
+                        <td><span class="badge ${s.status}">${s.status}</span></td>
+                        <td>${new Date(s.created_at).toLocaleDateString()}</td>
+                        <td class="actions">
+                            <button onclick="toggleStatus(${s.id}, '${s.status}')">${s.status === 'healthy' ? 'Mark Unhealthy' : 'Mark Healthy'}</button>
+                            <button class="delete" onclick="deleteServer(${s.id})">Delete</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) {
+                console.error('Failed to load servers:', e);
+            }
+        }
+
+        async function addServer() {
+            const name = document.getElementById('name').value;
+            const ip = document.getElementById('ip').value;
+            if (!name || !ip) return alert('Please fill in all fields');
+            await fetch(API + '/servers', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, ip})
+            });
+            document.getElementById('name').value = '';
+            document.getElementById('ip').value = '';
+            loadServers();
+        }
+
+        async function deleteServer(id) {
+            await fetch(API + '/servers/' + id, {method: 'DELETE'});
+            loadServers();
+        }
+
+        async function toggleStatus(id, current) {
+            const newStatus = current === 'healthy' ? 'unhealthy' : 'healthy';
+            await fetch(API + '/servers/' + id + '/status', {
+                method: 'PATCH',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({status: newStatus})
+            });
+            loadServers();
+        }
+
+        loadServers();
+        setInterval(loadServers, 10000);
+    </script>
+</body>
+</html>

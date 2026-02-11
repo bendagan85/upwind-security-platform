@@ -8,7 +8,6 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: upwind-app
   KIND_CLUSTER_NAME: chart-testing
 
 jobs:
@@ -28,56 +27,74 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 1. בניית האימג' ושמירה לוקאלית (load: true)
-      - name: Build Docker image
+      # Build Backend
+      - name: Build Backend image
         uses: docker/build-push-action@v5
         with:
-          context: ./app
-          file: ./app/Dockerfile
+          context: ./app/backend
+          file: ./app/backend/Dockerfile
           push: false
-          load: true # קריטי! שומר את האימג' ב-Docker של ה-Runner
-          tags: ${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          load: true
+          tags: upwind-backend:${{ github.sha }}
 
-      # 2. הקמת קלאסטר Kind
+      # Build Frontend
+      - name: Build Frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./app/frontend
+          file: ./app/frontend/Dockerfile
+          push: false
+          load: true
+          tags: upwind-frontend:${{ github.sha }}
+
+      # Kind Cluster
       - name: Create k8s Kind Cluster
         uses: helm/kind-action@v1.9.0
         with:
           cluster_name: ${{ env.KIND_CLUSTER_NAME }}
 
-      # 3. טעינת האימג' לתוך הקלאסטר (אחרת Kind לא יכיר אותו)
-      - name: Load Docker image into Kind
+      - name: Load images into Kind
         run: |
-          kind load docker-image ${{ env.ECR_REPOSITORY }}:${{ github.sha }} --name ${{ env.KIND_CLUSTER_NAME }}
+          kind load docker-image upwind-backend:${{ github.sha }} --name ${{ env.KIND_CLUSTER_NAME }}
+          kind load docker-image upwind-frontend:${{ github.sha }} --name ${{ env.KIND_CLUSTER_NAME }}
 
-      # 4. בדיקת Smoke Test - האם הפוד עולה?
-      - name: Test App on Kind
+      # Test Backend
+      - name: Test Backend on Kind
         run: |
-          echo "Deploying pod to Kind..."
-          # image-pull-policy=Never מבטיח שימוש באימג' המקומי שטענו
-          kubectl run test-app --image=${{ env.ECR_REPOSITORY }}:${{ github.sha }} --restart=Never --image-pull-policy=Never
-          
-          echo "Waiting for pod to be ready..."
-          kubectl wait --for=condition=Ready pod/test-app --timeout=60s
-          
-          echo "Test Passed! Pod is running. Cleaning up..."
-          kubectl delete pod test-app
+          kubectl run test-backend --image=upwind-backend:${{ github.sha }} --restart=Never --image-pull-policy=Never
+          kubectl wait --for=condition=Ready pod/test-backend --timeout=60s
+          kubectl delete pod test-backend
 
-      # 5. סריקות אבטחה (רצות רק אם הבדיקה עברה)
-      - name: Run Trivy vulnerability scanner
+      # Security Scans
+      - name: Trivy scan Backend
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          image-ref: upwind-backend:${{ github.sha }}
           format: 'table'
           severity: 'CRITICAL,HIGH'
           exit-code: '1'
 
-      - name: Lint Dockerfile with Hadolint
+      - name: Trivy scan Frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: upwind-frontend:${{ github.sha }}
+          format: 'table'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      - name: Lint Backend Dockerfile
         uses: hadolint/hadolint-action@v3.1.0
         with:
-          dockerfile: ./app/Dockerfile
+          dockerfile: ./app/backend/Dockerfile
           failure-threshold: warning
 
-      # 6. התחברות ודחיפה (רק אם זה Main)
+      - name: Lint Frontend Dockerfile
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: ./app/frontend/Dockerfile
+          failure-threshold: warning
+
+      # Push to ECR
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -89,13 +106,24 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Push to ECR
+      - name: Push Backend to ECR
         if: github.ref == 'refs/heads/main'
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker tag $ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          docker tag upwind-backend:$IMAGE_TAG $ECR_REGISTRY/upwind-backend:$IMAGE_TAG
+          docker tag upwind-backend:$IMAGE_TAG $ECR_REGISTRY/upwind-backend:latest
+          docker push $ECR_REGISTRY/upwind-backend:$IMAGE_TAG
+          docker push $ECR_REGISTRY/upwind-backend:latest
+
+      - name: Push Frontend to ECR
+        if: github.ref == 'refs/heads/main'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          docker tag upwind-frontend:$IMAGE_TAG $ECR_REGISTRY/upwind-frontend:$IMAGE_TAG
+          docker tag upwind-frontend:$IMAGE_TAG $ECR_REGISTRY/upwind-frontend:latest
+          docker push $ECR_REGISTRY/upwind-frontend:$IMAGE_TAG
+          docker push $ECR_REGISTRY/upwind-frontend:latest

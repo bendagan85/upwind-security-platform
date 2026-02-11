@@ -1,0 +1,76 @@
+repositories:
+  - name: external-secrets
+    url: https://charts.external-secrets.io
+  - name: external-dns
+    url: https://kubernetes-sigs.github.io/external-dns
+  - name: eks
+    url: https://aws.github.io/eks-charts
+  - name: prometheus-community
+    url: https://prometheus-community.github.io/helm-charts
+
+releases:
+  # AWS Load Balancer Controller
+  - name: aws-load-balancer-controller
+    namespace: kube-system
+    chart: eks/aws-load-balancer-controller
+    values:
+      - clusterName: upwind-cluster
+        serviceAccount:
+          create: true
+          name: aws-load-balancer-controller
+          annotations:
+            eks.amazonaws.com/role-arn: {{ requiredEnv "LB_CONTROLLER_ROLE_ARN" }}
+
+  # External DNS
+  - name: external-dns
+    namespace: kube-system
+    chart: external-dns/external-dns
+    values:
+      - serviceAccount:
+          create: true
+          name: external-dns
+          annotations:
+            eks.amazonaws.com/role-arn: {{ requiredEnv "EXTERNAL_DNS_ROLE_ARN" }}
+        domainFilters:
+          - ckicl.xyz
+        provider: aws
+        policy: sync
+        sources:
+          - ingress
+
+  # External Secrets Operator
+  - name: external-secrets
+    namespace: external-secrets
+    chart: external-secrets/external-secrets
+    values:
+      - serviceAccount:
+          create: true
+          annotations:
+            eks.amazonaws.com/role-arn: {{ requiredEnv "EXTERNAL_SECRETS_ROLE_ARN" }}
+
+  # Prometheus + Grafana
+  - name: kube-prometheus-stack
+    namespace: monitoring
+    chart: prometheus-community/kube-prometheus-stack
+    values:
+      - grafana:
+          adminPassword: admin123
+
+  # PostgreSQL
+  - name: postgresql
+    namespace: upwind-app
+    chart: ./helm/postgresql
+
+  # Backend
+  - name: backend
+    namespace: upwind-app
+    chart: ./helm/backend
+    needs:
+      - upwind-app/postgresql
+
+  # Frontend
+  - name: frontend
+    namespace: upwind-app
+    chart: ./helm/frontend
+    needs:
+      - upwind-app/backend

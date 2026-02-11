@@ -1,20 +1,30 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: webapp-ingress
-  namespace: upwind-app  
+  name: upwind-ingress
+  namespace: upwind-app
   annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    external-dns.alpha.kubernetes.io/hostname: app.ckicl.xyz
 spec:
-  ingressClassName: nginx
+  ingressClassName: alb
   rules:
-  - host: app.upwind.local
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: upwind-app 
-            port:
-              number: 80
+    - host: app.ckicl.xyz
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 80
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
